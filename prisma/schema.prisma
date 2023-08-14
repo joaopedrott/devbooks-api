@@ -15,4 +15,24 @@ model User {
   name     String?
   email    String  @unique
   password String
+  myBooks MyBooks[]
+}
+
+enum BookState {
+  IS_READING
+  READ
+  WANTS_TO_READ
+}
+
+model MyBooks {
+  id Int @default(autoincrement()) @id
+  user   User    @relation(fields: [userId], references: [id])
+  userId Int
+  bookId String @unique
+  bookState BookState @default(WANTS_TO_READ)
+  currentPage Int?
+  totalPages Int
+  book Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
