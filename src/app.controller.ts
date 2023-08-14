@@ -7,12 +7,17 @@ import {
   UseGuards,
   UnauthorizedException,
   BadRequestException,
+  Query,
+  Put,
+  Param,
+  Request,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthGuard } from './auth.guard';
+import axios from 'axios';
 
 type UserModel = Pick<User, 'id' | 'name' | 'email'>;
 
@@ -34,6 +39,15 @@ interface RefreshResponse {
 interface AccessTokenPayload {
   scope: string[];
   userId: number;
+}
+
+interface BooksQuery {
+  q: string;
+  maxResults: number;
+}
+
+interface AuthRequest {
+  userId: string;
 }
 
 @Controller()
@@ -69,7 +83,7 @@ export class AppController {
         userId: user.id,
       },
       {
-        expiresIn: '1 minute',
+        expiresIn: '3 hours',
       },
     );
 
@@ -79,7 +93,7 @@ export class AppController {
         userId: user.id,
       },
       {
-        expiresIn: '30 seconds',
+        expiresIn: '1 hour',
       },
     );
 
@@ -178,7 +192,16 @@ export class AppController {
 
   @Get('/books')
   @UseGuards(AuthGuard)
-  async books() {
-    return [];
+  async books(@Query() query: BooksQuery) {
+    const { q, maxResults } = query;
+
+    const response = await axios.get(
+      `https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=${maxResults}`,
+    );
+
+    return {
+      totalItems: response.data.totalItems,
+      items: response.data.items,
+    };
   }
 }
