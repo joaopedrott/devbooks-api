@@ -50,6 +50,21 @@ interface AuthRequest {
   userId: string;
 }
 
+type BookState = 'is-reading' | 'read' | 'wants-to-read';
+
+interface AddToMyBooksBody {
+  bookId: string;
+  bookState: BookState;
+}
+
+interface UpdateBookReadingBody {
+  page: number;
+}
+
+interface UpdateBookReadingParams {
+  id: number;
+}
+
 @Controller()
 export class AppController {
   constructor(
@@ -208,27 +223,31 @@ export class AppController {
   @Get('/books/my-books')
   @UseGuards(AuthGuard)
   async myBooks(@Request() req: AuthRequest) {
-    const { userId } = req;
-
     //TODO: query all books from a userId in my-books table.
+    //TODO: return them.
+  }
 
-    //TODO: return them
+  @Post('/books/my-books')
+  @UseGuards(AuthGuard)
+  async addToMyBooks(
+    @Request() req: AuthRequest,
+    @Body() body: AddToMyBooksBody,
+  ) {
+    //TODO: check if the bookId and userId pair already exists in my-books table, if so, throw.
+    //TODO: before save, call google books api to fetch the book payload to save it along.
+    //TODO: return the new record created in my-books table.
   }
 
   @Put('/books/:id/reading')
   @UseGuards(AuthGuard)
   async updateBookReading(
-    @Param() params: { id: string },
-    @Body() body: { page: number },
+    @Param() params: UpdateBookReadingParams,
+    @Body() body: UpdateBookReadingBody,
     @Request() req: AuthRequest,
   ) {
-    const { page } = body;
-    const { id } = params;
-
-    return {
-      id,
-      page,
-      userId: req.userId,
-    };
+    //TODO: check if the id and userId pair already exists in my-books table, if not, throw.
+    //TODO: check if the currentPage sent is greater then or equal to the book's page, if so, change the book state to read.
+    //TODO: update the record with the new currentPage in my-books table.
+    //TODO: return the updated record.
   }
 }
