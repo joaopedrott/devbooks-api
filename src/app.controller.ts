@@ -214,4 +214,21 @@ export class AppController {
 
     //TODO: return them
   }
+
+  @Put('/books/:id/reading')
+  @UseGuards(AuthGuard)
+  async updateBookReading(
+    @Param() params: { id: string },
+    @Body() body: { page: number },
+    @Request() req: AuthRequest,
+  ) {
+    const { page } = body;
+    const { id } = params;
+
+    return {
+      id,
+      page,
+      userId: req.userId,
+    };
+  }
 }
