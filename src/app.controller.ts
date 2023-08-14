@@ -204,4 +204,14 @@ export class AppController {
       items: response.data.items,
     };
   }
+
+  @Get('/books/my-books')
+  @UseGuards(AuthGuard)
+  async myBooks(@Request() req: AuthRequest) {
+    const { userId } = req;
+
+    //TODO: query all books from a userId in my-books table.
+
+    //TODO: return them
+  }
 }
