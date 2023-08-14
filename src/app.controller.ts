@@ -13,11 +13,12 @@ import {
   Request,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthGuard } from './auth.guard';
 import axios from 'axios';
+import { MyBooksService } from './my-books.service';
 
 type UserModel = Pick<User, 'id' | 'name' | 'email'>;
 
@@ -47,10 +48,10 @@ interface BooksQuery {
 }
 
 interface AuthRequest {
-  userId: string;
+  userId: number;
 }
 
-type BookState = 'is-reading' | 'read' | 'wants-to-read';
+type BookState = 'IS_READING' | 'READ' | 'WANTS_TO_READ';
 
 interface AddToMyBooksBody {
   bookId: string;
@@ -65,10 +66,24 @@ interface UpdateBookReadingParams {
   id: number;
 }
 
+interface GoogleBook {
+  id: string;
+  volumeInfo: {
+    title: string;
+    subtitle: string;
+    description: string;
+    imageLinks?: {
+      thumbnail: string;
+    };
+    pageCount: number;
+  };
+}
+
 @Controller()
 export class AppController {
   constructor(
     private readonly userService: UserService,
+    private readonly myBooksService: MyBooksService,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -224,7 +239,16 @@ export class AppController {
   @UseGuards(AuthGuard)
   async myBooks(@Request() req: AuthRequest) {
     //TODO: query all books from a userId in my-books table.
+    const { userId } = req;
+
+    const books = await this.myBooksService.findAll({
+      where: {
+        userId,
+      },
+    });
+
     //TODO: return them.
+    return books;
   }
 
   @Post('/books/my-books')
@@ -234,8 +258,40 @@ export class AppController {
     @Body() body: AddToMyBooksBody,
   ) {
     //TODO: check if the bookId and userId pair already exists in my-books table, if so, throw.
+    const { bookId, bookState } = body;
+    const { userId } = req;
+
+    const isBookAlreadyExists = await this.myBooksService.findOne({
+      bookId,
+      userId,
+    });
+
+    if (isBookAlreadyExists) {
+      throw new BadRequestException(
+        'This book is already on your my books list',
+      );
+    }
+
     //TODO: before save, call google books api to fetch the book payload to save it along.
+    const response = await axios.get<GoogleBook>(
+      `https://www.googleapis.com/books/v1/volumes/${bookId}`,
+    );
+
+    const book = response.data as unknown as Prisma.JsonObject;
+
+    //TODO: save the book on my-books table.
+    const myBook = await this.myBooksService.createMyBook({
+      bookId,
+      totalPages: response.data.volumeInfo.pageCount,
+      bookState,
+      user: {
+        connect: { id: userId },
+      },
+      book,
+    });
+
     //TODO: return the new record created in my-books table.
+    return myBook;
   }
 
   @Put('/books/:id/reading')
