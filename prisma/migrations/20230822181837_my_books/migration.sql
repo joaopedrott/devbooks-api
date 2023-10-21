@@ -17,7 +17,10 @@ CREATE TABLE "MyBooks" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "MyBooks_bookId_key" ON "MyBooks"("bookId");
+CREATE INDEX "MyBooks_userId_idx" ON "MyBooks" USING HASH ("userId");
+
+-- CreateIndex
+CREATE INDEX "MyBooks_bookId_idx" ON "MyBooks" USING HASH ("bookId");
 
 -- AddForeignKey
 ALTER TABLE "MyBooks" ADD CONSTRAINT "MyBooks_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -28,11 +28,14 @@ model MyBooks {
   id          Int @default(autoincrement()) @id
   user        User    @relation(fields: [userId], references: [id])
   userId      Int
-  bookId      String @unique
+  bookId      String
   bookState   BookState @default(WANTS_TO_READ)
   currentPage Int?
   totalPages  Int
   book        Json
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([userId], type: Hash)
+  @@index([bookId], type: Hash)
 }

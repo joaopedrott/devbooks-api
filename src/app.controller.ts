@@ -63,7 +63,7 @@ interface UpdateBookReadingBody {
 }
 
 interface UpdateBookReadingParams {
-  id: number;
+  id: string;
 }
 
 interface GoogleBook {
@@ -235,10 +235,33 @@ export class AppController {
     };
   }
 
-  @Get('/books/my-books')
+  @Get('/books/:bookId')
+  @UseGuards(AuthGuard)
+  async bookDetails(
+    @Param() params: { bookId: string },
+    @Request() req: AuthRequest,
+  ) {
+    const { bookId } = params;
+    const { userId } = req;
+
+    const response = await axios.get(
+      `https://www.googleapis.com/books/v1/volumes/${bookId}`,
+    );
+
+    const book = await this.myBooksService.findOne({
+      bookId,
+      userId,
+    });
+
+    return {
+      ...response.data,
+      bookState: book?.bookState,
+    };
+  }
+
+  @Get('/my-books')
   @UseGuards(AuthGuard)
   async myBooks(@Request() req: AuthRequest) {
-    //TODO: query all books from a userId in my-books table.
     const { userId } = req;
 
     const books = await this.myBooksService.findAll({
@@ -247,8 +270,17 @@ export class AppController {
       },
     });
 
-    //TODO: return them.
-    return books;
+    const isReading = books.filter((book) => book.bookState === 'IS_READING');
+    const read = books.filter((book) => book.bookState === 'READ');
+    const wantsToRead = books.filter(
+      (book) => book.bookState === 'WANTS_TO_READ',
+    );
+
+    return {
+      isReading,
+      read,
+      wantsToRead,
+    };
   }
 
   @Post('/books/my-books')
@@ -267,9 +299,16 @@ export class AppController {
     });
 
     if (isBookAlreadyExists) {
-      throw new BadRequestException(
-        'This book is already on your my books list',
-      );
+      const myBookUpdate = await this.myBooksService.updateMyBook({
+        where: {
+          id: isBookAlreadyExists.id,
+        },
+        data: {
+          bookState,
+        },
+      });
+
+      return myBookUpdate;
     }
 
     //TODO: before save, call google books api to fetch the book payload to save it along.
@@ -279,7 +318,6 @@ export class AppController {
 
     const book = response.data as unknown as Prisma.JsonObject;
 
-    //TODO: save the book on my-books table.
     const myBook = await this.myBooksService.createMyBook({
       bookId,
       totalPages: response.data.volumeInfo.pageCount,
@@ -290,7 +328,6 @@ export class AppController {
       book,
     });
 
-    //TODO: return the new record created in my-books table.
     return myBook;
   }
 
@@ -301,9 +338,36 @@ export class AppController {
     @Body() body: UpdateBookReadingBody,
     @Request() req: AuthRequest,
   ) {
-    //TODO: check if the id and userId pair already exists in my-books table, if not, throw.
-    //TODO: check if the currentPage sent is greater then or equal to the book's page, if so, change the book state to read.
+    const { id } = params;
+    const { page } = body;
+    const { userId } = req;
+
+    const isBookAlreadyExists = await this.myBooksService.findOne({
+      bookId: id,
+      userId,
+    });
+
+    if (!isBookAlreadyExists) {
+      throw new Error('Cannot update reading position');
+    }
+
+    const isPageGreaterThanTotalPage = page >= isBookAlreadyExists.totalPages;
+
+    const myBookUpdated = await this.myBooksService.updateMyBook({
+      where: {
+        id: isBookAlreadyExists.id,
+      },
+      data: {
+        currentPage: isPageGreaterThanTotalPage
+          ? isBookAlreadyExists.totalPages
+          : page,
+        bookState: isPageGreaterThanTotalPage
+          ? 'READ'
+          : isBookAlreadyExists.bookState,
+      },
+    });
     //TODO: update the record with the new currentPage in my-books table.
     //TODO: return the updated record.
+    return myBookUpdated;
   }
 }
