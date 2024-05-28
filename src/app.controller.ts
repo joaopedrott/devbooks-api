@@ -11,6 +11,10 @@ import {
   Put,
   Param,
   Request,
+  UseInterceptors,
+  UploadedFile,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { Prisma, User } from '@prisma/client';
@@ -19,6 +23,9 @@ import * as bcrypt from 'bcrypt';
 import { AuthGuard } from './auth.guard';
 import axios from 'axios';
 import { MyBooksService } from './my-books.service';
+import { FileInterceptor } from '@nestjs/platform-express';
+import * as fs from 'fs';
+import * as path from 'path';
 
 type UserModel = Pick<User, 'id' | 'name' | 'email'>;
 
@@ -77,6 +84,10 @@ interface GoogleBook {
     };
     pageCount: number;
   };
+}
+
+interface UpdateUserBody {
+  name?: string;
 }
 
 @Controller()
@@ -197,7 +208,7 @@ export class AppController {
           userId: user.id,
         },
         {
-          expiresIn: '1 minute',
+          expiresIn: '1 day',
         },
       );
 
@@ -207,7 +218,7 @@ export class AppController {
           userId: user.id,
         },
         {
-          expiresIn: '30 second',
+          expiresIn: '12 hours',
         },
       );
 
@@ -218,6 +229,74 @@ export class AppController {
     } catch (error) {
       throw new UnauthorizedException('Cannot refresh session');
     }
+  }
+
+  @Post('user/avatar')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadAvatar(
+    @Request() req: AuthRequest,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const { userId } = req;
+
+    const isExistingUser = await this.userService.findOne({
+      id: userId,
+    });
+
+    if (!isExistingUser) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    const fileName = isExistingUser.avatar.split('/')[1];
+
+    const filePath = path.join(__dirname, '..', 'uploads', fileName);
+
+    fs.unlink(filePath, (err) => {
+      if (err) {
+        if (err.code === 'ENOENT') {
+          throw new HttpException(
+            'Failed to upload user avatar',
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+
+        throw new HttpException(
+          'Failed to upload user avatar',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    });
+
+    const user = await this.userService.updateUser({
+      where: {
+        id: userId,
+      },
+      data: {
+        avatar: file.path,
+      },
+    });
+
+    return {
+      user,
+    };
+  }
+
+  @Put('user')
+  @UseGuards(AuthGuard)
+  async updateUser(@Request() req: AuthRequest, @Body() body: UpdateUserBody) {
+    const { userId } = req;
+    const { name } = body;
+
+    const user = await this.userService.updateUser({
+      where: {
+        id: userId,
+      },
+      data: {
+        name,
+      },
+    });
+
+    return user;
   }
 
   @Get('/books')

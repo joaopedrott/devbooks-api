@@ -14,6 +14,7 @@ model User {
   id       Int     @default(autoincrement()) @id
   name     String?
   email    String  @unique
+  avatar   String?
   password String
   myBooks MyBooks[]
 }
@@ -38,4 +39,16 @@ model MyBooks {
 
   @@index([userId], type: Hash)
   @@index([bookId], type: Hash)
+  readingHistory ReadingHistory[]
+}
+
+model ReadingHistory {
+  id          Int @default(autoincrement()) @id
+  myBook      MyBooks    @relation(fields: [myBookId], references: [id])
+  myBookId    Int
+  pageCount   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([myBookId], type: Hash)
 }
