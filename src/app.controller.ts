@@ -24,8 +24,8 @@ import { AuthGuard } from './auth.guard';
 import axios from 'axios';
 import { MyBooksService } from './my-books.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import * as fs from 'fs';
-import * as path from 'path';
+import { unlink } from 'fs';
+import { join } from 'path';
 
 type UserModel = Pick<User, 'id' | 'name' | 'email'>;
 
@@ -232,6 +232,7 @@ export class AppController {
   }
 
   @Post('user/avatar')
+  @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('file'))
   async uploadAvatar(
     @Request() req: AuthRequest,
@@ -247,23 +248,18 @@ export class AppController {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-    const fileName = isExistingUser.avatar.split('/')[1];
+    const fileName = isExistingUser.avatar;
 
-    const filePath = path.join(__dirname, '..', 'uploads', fileName);
+    const filePath = join(__dirname, '..', 'uploads', fileName);
 
-    fs.unlink(filePath, (err) => {
+    unlink(filePath, (err) => {
       if (err) {
-        if (err.code === 'ENOENT') {
+        if (err.code !== 'ENOENT') {
           throw new HttpException(
             'Failed to upload user avatar',
             HttpStatus.INTERNAL_SERVER_ERROR,
           );
         }
-
-        throw new HttpException(
-          'Failed to upload user avatar',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
       }
     });
 
@@ -272,7 +268,7 @@ export class AppController {
         id: userId,
       },
       data: {
-        avatar: file.path,
+        avatar: file.filename,
       },
     });
 

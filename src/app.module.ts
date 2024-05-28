@@ -8,6 +8,8 @@ import { MyBooksService } from './my-books.service';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -19,6 +21,9 @@ import { extname } from 'path';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get('JWT_SECRET'),
       }),
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
     }),
     MulterModule.register({
       storage: diskStorage({
