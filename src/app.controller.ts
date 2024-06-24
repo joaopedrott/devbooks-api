@@ -313,6 +313,8 @@ export class AppController {
       },
     });
 
+    delete user.password;
+
     return user;
   }
 
