@@ -90,6 +90,11 @@ interface UpdateUserBody {
   name?: string;
 }
 
+interface UpdatePasswordBody {
+  newPassword: string;
+  currentPassword: string;
+}
+
 @Controller()
 export class AppController {
   constructor(
@@ -316,6 +321,38 @@ export class AppController {
     delete user.password;
 
     return user;
+  }
+
+  @Put('user/password')
+  @UseGuards(AuthGuard)
+  async updatePassword(
+    @Request() req: AuthRequest,
+    @Body() body: UpdatePasswordBody,
+  ) {
+    const { userId } = req;
+    const { newPassword, currentPassword } = body;
+
+    const user = await this.userService.findOne({
+      id: userId,
+    });
+
+    const isSamePassword = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isSamePassword) {
+      throw new UnauthorizedException('Invalid password');
+    }
+
+    const saltOrRounds = 10;
+    const hashPassword = await bcrypt.hash(newPassword, saltOrRounds);
+
+    await this.userService.updateUser({
+      where: {
+        id: userId,
+      },
+      data: {
+        password: hashPassword,
+      },
+    });
   }
 
   @Get('/books')
