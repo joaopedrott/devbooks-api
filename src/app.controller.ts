@@ -129,7 +129,7 @@ export class AppController {
         userId: user.id,
       },
       {
-        expiresIn: '30 seconds',
+        expiresIn: '30 minutes',
       },
     );
 
@@ -213,7 +213,7 @@ export class AppController {
           userId: user.id,
         },
         {
-          expiresIn: '30 seconds',
+          expiresIn: '30 minutes',
         },
       );
 
